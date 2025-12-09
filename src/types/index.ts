@@ -90,6 +90,7 @@ export interface Timesheet {
 
 // Payload pour le webhook de soumission
 export interface SubmissionWebhookPayload {
+  timesheetId: string;
   agencyId: string;
   agencyName?: string;
   submittedBy: string;

@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { useAuth } from '../hooks/useAuth';
-import { WEBHOOKS } from '../lib/supabase';
+import { supabase, WEBHOOKS } from '../lib/supabase';
 import { TimesheetFormData, SubmissionWebhookPayload } from '../types';
 
 export function TimesheetForm() {
@@ -124,38 +124,81 @@ export function TimesheetForm() {
 
     setLoading(true);
 
-    const payload: SubmissionWebhookPayload = {
-      agencyId: user?.agencyId || 'demo',
-      agencyName: user?.agencyName,
-      submittedBy: user?.email || '',
-      submittedAt: new Date().toISOString(),
-      releve_data: {
-        employee: formData.employee,
-        company: formData.company,
-        weekStart: formData.weekStart,
-        hours: formData.hours,
-        comments: formData.comments,
-        missionStatus: formData.missionStatus,
-        totalHours: calculateTotalHours()
-      },
-      client_email: formData.company.email
-    };
-
     try {
-      if (WEBHOOKS.SUBMISSION) {
-        await fetch(WEBHOOKS.SUBMISSION, {
+      const weekPeriod = getWeekPeriod();
+
+      // 1. Insérer dans Supabase (PRIORITÉ - Lien de cardinalité créé ici !)
+      const { data: timesheetData, error: insertError } = await supabase
+        .from('timesheets')
+        .insert({
+          submitted_by: user?.email || '',
+          agency_id: user?.agencyId || null, // ← LIEN DE CARDINALITÉ !
+          client_email: formData.company.email,
+          
+          employee_first_name: formData.employee.firstName,
+          employee_last_name: formData.employee.lastName,
+          employee_pluri_rh: formData.employee.pluriRH,
+          
+          company_name: formData.company.name,
+          company_email: formData.company.email,
+          company_contract_number: formData.company.contractNumber,
+          company_location: formData.company.location,
+          
+          week_start: formData.weekStart,
+          week_number: weekPeriod.weekNumber,
+          year: weekPeriod.year,
+          hours: formData.hours,
+          comments: formData.comments,
+          mission_status: formData.missionStatus,
+          total_hours: totalHours,
+          
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // 2. Envoyer le webhook n8n (OPTIONNEL - pour notifications)
+      if (WEBHOOKS.SUBMISSION && timesheetData) {
+        const payload: SubmissionWebhookPayload = {
+          timesheetId: timesheetData.id,
+          agencyId: user?.agencyId || 'demo',
+          agencyName: user?.agencyName,
+          submittedBy: user?.email || '',
+          submittedAt: new Date().toISOString(),
+          releve_data: {
+            employee: formData.employee,
+            company: formData.company,
+            weekStart: formData.weekStart,
+            hours: formData.hours,
+            comments: formData.comments,
+            missionStatus: formData.missionStatus,
+            totalHours: calculateTotalHours()
+          },
+          client_email: formData.company.email
+        };
+
+        // Envoyer sans bloquer si ça échoue
+        fetch(WEBHOOKS.SUBMISSION, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
+        }).catch(err => console.error('Erreur webhook:', err));
       }
+
       alert('✅ Relevé soumis avec succès !');
+      
+      // Rediriger selon le rôle
       if (user?.role === 'agence') {
         navigate('/dashboard');
+      } else {
+        navigate('/');
       }
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Erreur:', error);
-      alert('✅ Relevé soumis (mode démo)');
+      alert('❌ Erreur lors de la soumission : ' + (error.message || 'Une erreur est survenue'));
     } finally {
       setLoading(false);
     }
@@ -192,6 +235,7 @@ export function TimesheetForm() {
               </label>
               <input
                 type="time"
+                aria-label="Heure de début de journée"
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={dayData.dayStart}
                 onChange={(e) => updateDayHours(dayKey, 'dayStart', e.target.value)}
@@ -203,6 +247,7 @@ export function TimesheetForm() {
               </label>
               <input
                 type="time"
+                aria-label="Heure de fin de journée"
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={dayData.dayEnd}
                 onChange={(e) => updateDayHours(dayKey, 'dayEnd', e.target.value)}
@@ -218,6 +263,7 @@ export function TimesheetForm() {
               </label>
               <input
                 type="time"
+                aria-label="Heure de début de nuit"
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={dayData.nightStart}
                 onChange={(e) => updateDayHours(dayKey, 'nightStart', e.target.value)}
@@ -229,6 +275,7 @@ export function TimesheetForm() {
               </label>
               <input
                 type="time"
+                aria-label="Heure de fin de nuit"
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={dayData.nightEnd}
                 onChange={(e) => updateDayHours(dayKey, 'nightEnd', e.target.value)}
@@ -245,6 +292,7 @@ export function TimesheetForm() {
               type="number"
               step="0.5"
               min="0"
+              aria-label="Durée de la pause en heures"
               className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               value={dayData.pause}
               onChange={(e) => updateDayHours(dayKey, 'pause', parseFloat(e.target.value) || 0)}
@@ -309,6 +357,7 @@ export function TimesheetForm() {
                 <td className="border border-neutral-200 px-2 py-1">
                   <input
                     type="time"
+                    aria-label={`Heure de début de journée pour ${key}`}
                     className="w-full px-2 py-1 text-sm border-0 focus:ring-1 focus:ring-primary rounded"
                     value={formData.hours[key as keyof typeof formData.hours].dayStart}
                     onChange={(e) => updateDayHours(key as keyof typeof formData.hours, 'dayStart', e.target.value)}
@@ -317,6 +366,7 @@ export function TimesheetForm() {
                 <td className="border border-neutral-200 px-2 py-1">
                   <input
                     type="time"
+                    aria-label={`Heure de fin de journée pour ${key}`}
                     className="w-full px-2 py-1 text-sm border-0 focus:ring-1 focus:ring-primary rounded"
                     value={formData.hours[key as keyof typeof formData.hours].dayEnd}
                     onChange={(e) => updateDayHours(key as keyof typeof formData.hours, 'dayEnd', e.target.value)}
@@ -325,6 +375,7 @@ export function TimesheetForm() {
                 <td className="border border-neutral-200 px-2 py-1">
                   <input
                     type="time"
+                    aria-label={`Heure de début de nuit pour ${key}`}
                     className="w-full px-2 py-1 text-sm border-0 focus:ring-1 focus:ring-primary rounded"
                     value={formData.hours[key as keyof typeof formData.hours].nightStart}
                     onChange={(e) => updateDayHours(key as keyof typeof formData.hours, 'nightStart', e.target.value)}
@@ -333,6 +384,7 @@ export function TimesheetForm() {
                 <td className="border border-neutral-200 px-2 py-1">
                   <input
                     type="time"
+                    aria-label={`Heure de fin de nuit pour ${key}`}
                     className="w-full px-2 py-1 text-sm border-0 focus:ring-1 focus:ring-primary rounded"
                     value={formData.hours[key as keyof typeof formData.hours].nightEnd}
                     onChange={(e) => updateDayHours(key as keyof typeof formData.hours, 'nightEnd', e.target.value)}
@@ -343,6 +395,7 @@ export function TimesheetForm() {
                     type="number"
                     step="0.5"
                     min="0"
+                    aria-label={`Durée de pause pour ${key}`}
                     className="w-20 px-2 py-1 text-sm border-0 focus:ring-1 focus:ring-primary rounded"
                     value={formData.hours[key as keyof typeof formData.hours].pause}
                     onChange={(e) => updateDayHours(key as keyof typeof formData.hours, 'pause', parseFloat(e.target.value) || 0)}
@@ -443,6 +496,7 @@ export function TimesheetForm() {
               />
               <input 
                 type="date" 
+                aria-label="Date de début de semaine"
                 className="form-input" 
                 value={formData.weekStart} 
                 onChange={(e) => setFormData({...formData, weekStart: e.target.value})} 
@@ -509,6 +563,7 @@ export function TimesheetForm() {
           <div className="bg-white rounded-xl border border-neutral-200 p-6">
             <h2 className="text-lg font-semibold mb-4">Statut de la Mission</h2>
             <select 
+              aria-label="Statut de la mission"
               className="form-input mb-4" 
               value={formData.missionStatus} 
               onChange={(e) => setFormData({...formData, missionStatus: e.target.value as any})}
