@@ -2,13 +2,11 @@ import { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Clipboard, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { UserRole } from '../types';
 
 export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('interimaire');
-  const [agencyId, setAgencyId] = useState('');
+  const [agencyName, setAgencyName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,42 +17,43 @@ export function SignupPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    console.log('🚀 Signup - Début du handleSubmit');
+    console.log('📧 Email:', email);
+    console.log('🔒 Password length:', password.length);
+    
     setError('');
     setSuccess(false);
     setLoading(true);
 
-    // Validation
-    if (role === 'agence' && !agencyId) {
-      setError('L\'ID agence est requis pour le rôle Agence');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await signUp(
-        email, 
-        password, 
-        role, 
-        role === 'agence' ? agencyId : undefined
-      );
+      console.log('📞 Appel signUp...');
+      await signUp(email, password, 'agence');
+      console.log('✅ signUp réussi !');
       
-      if (error) {
-        setError(error.message);
-        return;
+      // Mettre à jour le nom de l'agence si fourni
+      if (agencyName) {
+        console.log('🏢 Agency name fourni:', agencyName);
+        // TODO: Mettre à jour le profil avec agency_name
       }
-
-      if (data.user) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      }
-    } catch (err) {
-      setError('Une erreur est survenue lors de l\'inscription');
+      
+      setSuccess(true);
+      console.log('⏳ Redirection dans 2 secondes...');
+      setTimeout(() => {
+        console.log('➡️  Navigation vers /dashboard');
+        navigate('/dashboard');
+      }, 2000);
+    } catch (err: any) {
+      console.error('❌ Erreur signup:', err);
+      console.error('❌ Message:', err.message);
+      console.error('❌ Stack:', err.stack);
+      setError(err.message || 'Une erreur est survenue lors de l\'inscription');
     } finally {
       setLoading(false);
+      console.log('🏁 Fin du handleSubmit');
     }
   };
+
+  // console.log('🔄 Render SignupPage - loading:', loading);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-neutral-50 py-8">
@@ -67,10 +66,10 @@ export function SignupPage() {
           </div>
           
           <h1 className="text-2xl font-bold text-center text-neutral-900 mb-2">
-            Créer un compte
+            Créer un compte Agence
           </h1>
           <p className="text-center text-neutral-500 text-sm mb-8">
-            Inscrivez-vous pour commencer
+            Inscrivez-vous pour gérer vos intérimaires
           </p>
 
           {error && (
@@ -92,12 +91,26 @@ export function SignupPage() {
           <form onSubmit={handleSubmit}>
             <div className="mb-5">
               <label className="block text-sm font-medium text-neutral-900 mb-2">
+                Nom de l'agence (optionnel)
+              </label>
+              <input
+                type="text"
+                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-md text-sm transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                placeholder="Mon Agence Intérim"
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-neutral-900 mb-2">
                 Email
               </label>
               <input
                 type="email"
                 className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-md text-sm transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                placeholder="vous@example.com"
+                placeholder="vous@agence.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -105,7 +118,7 @@ export function SignupPage() {
               />
             </div>
 
-            <div className="mb-5">
+            <div className="mb-6">
               <label className="block text-sm font-medium text-neutral-900 mb-2">
                 Mot de passe
               </label>
@@ -123,6 +136,7 @@ export function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
                   disabled={loading}
                 >
@@ -138,53 +152,22 @@ export function SignupPage() {
               </p>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
-                Rôle
-              </label>
-              <select
-                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-md text-sm cursor-pointer transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                disabled={loading}
-              >
-                <option value="interimaire">Intérimaire</option>
-                <option value="agence">Agence</option>
-              </select>
-              <p className="text-xs text-neutral-500 mt-1">
-                {role === 'interimaire' && 'Accès au formulaire de relevé uniquement'}
-                {role === 'agence' && 'Accès au dashboard et gestion des relevés'}
-              </p>
-            </div>
-
-            {role === 'agence' && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-neutral-900 mb-2">
-                  ID Agence
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-md text-sm transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                  placeholder="agency-123"
-                  value={agencyId}
-                  onChange={(e) => setAgencyId(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  Identifiant unique de votre agence
-                </p>
-              </div>
-            )}
-
             <button
               type="submit"
               className="w-full bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-md font-medium text-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
+              onClick={() => console.log('🖱️  Clic sur bouton submit')}
             >
-              {loading ? 'Inscription...' : 'S\'inscrire'}
+              {loading ? 'Inscription...' : 'Créer mon compte agence'}
             </button>
           </form>
+
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-900">
+              💡 <strong>Note :</strong> Les intérimaires n'ont pas besoin de s'inscrire. 
+              Vous pourrez les créer depuis votre dashboard.
+            </p>
+          </div>
 
           <p className="text-center text-sm text-neutral-500 mt-4">
             Déjà un compte ?{' '}
