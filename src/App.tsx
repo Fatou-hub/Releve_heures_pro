@@ -7,6 +7,8 @@ import { AgencyDashboard } from './pages/AgencyDashboard';
 import { ManageInterimaires } from './pages/ManageInterimaires';
 import { TimesheetForm } from './pages/TimesheetForm';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SignupInterimairePage } from './pages/Signupinterimairepage';
+
 
 function App() {
   return (
@@ -16,6 +18,7 @@ function App() {
           {/* Routes publiques */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup-interimaire" element={<SignupInterimairePage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Routes protégées - Agence */}

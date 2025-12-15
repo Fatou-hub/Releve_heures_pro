@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Header } from '../components/Header';
-import { Plus, Mail, Phone, Calendar, X, UserPlus, Search} from 'lucide-react';
+import { Plus, Mail, Phone, Calendar, X, UserPlus, Search } from 'lucide-react';
 
 
 interface Interimaire {
@@ -38,7 +38,7 @@ export function ManageInterimaires() {
     if (searchTerm.trim() === '') {
       setFilteredInterimaires(interimaires);
     } else {
-      const filtered = interimaires.filter(int => 
+      const filtered = interimaires.filter(int =>
         int.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         int.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         int.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -72,7 +72,7 @@ export function ManageInterimaires() {
 
     try {
       // 1. Appeler la fonction Supabase pour créer l'intérimaire
-      const { error } = await supabase.rpc('create_interimaire', {
+      const { error } = await supabase.rpc('create_interimaire_simple', {
         p_email: formData.email,
         p_first_name: formData.firstName,
         p_last_name: formData.lastName,
@@ -81,19 +81,21 @@ export function ManageInterimaires() {
 
       if (error) throw error;
 
-      // 2. Envoyer l'email de réinitialisation de mot de passe
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        formData.email,
-        {
-          redirectTo: `${window.location.origin}/reset-password`
-        }
-      );
+      // 2. Créer le lien d'invitation
+      const invitationLink = `${window.location.origin}/signup-interimaire?email=${encodeURIComponent(formData.email)}`;
 
-      if (resetError) {
-        console.error('Erreur envoi email:', resetError);
-      }
+      // 3. Afficher le message avec le lien
+      const message = `✅ Intérimaire créé avec succès !\n\n📧 Envoyez-lui ce lien pour qu'il crée son compte :\n${invitationLink}\n\nCopiez ce lien et envoyez-le par email/SMS/WhatsApp.`;
 
-      alert('✅ Intérimaire créé avec succès ! Un email lui a été envoyé pour définir son mot de passe.');
+      alert(message);
+
+      // 4. Copier automatiquement le lien dans le presse-papier
+      navigator.clipboard.writeText(invitationLink).then(() => {
+        console.log('✅ Lien copié dans le presse-papier');
+      }).catch((err) => {
+        console.error('Erreur copie presse-papier:', err);
+      });
+
       setShowModal(false);
       setFormData({ email: '', firstName: '', lastName: '', phone: '' });
       fetchInterimaires();
@@ -109,7 +111,7 @@ export function ManageInterimaires() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header title="Gestion des Intérimaires" />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header avec statistiques et bouton */}
         <div className="mb-6">
@@ -189,8 +191,8 @@ export function ManageInterimaires() {
                   </thead>
                   <tbody>
                     {filteredInterimaires.map((int) => (
-                      <tr 
-                        key={int.id} 
+                      <tr
+                        key={int.id}
                         className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors"
                       >
                         <td className="p-4">
@@ -298,7 +300,7 @@ export function ManageInterimaires() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateInterimaire} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -309,7 +311,7 @@ export function ManageInterimaires() {
                   className="form-input"
                   placeholder="Jean"
                   value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   required
                 />
               </div>
@@ -323,7 +325,7 @@ export function ManageInterimaires() {
                   className="form-input"
                   placeholder="Dupont"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   required
                 />
               </div>
@@ -337,7 +339,7 @@ export function ManageInterimaires() {
                   className="form-input"
                   placeholder="jean.dupont@email.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
               </div>
@@ -349,7 +351,7 @@ export function ManageInterimaires() {
                   className="form-input"
                   placeholder="+33 6 12 34 56 78"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
 

@@ -148,10 +148,40 @@ const signUp = async (
     throw new Error('Erreur lors de la création du compte');
   }
 
-  console.log('✅ Compte auth créé:', data.user.id);
+console.log('✅ Compte auth créé:', data.user.id);
 
-  // 2. Créer le profil
+// 2. Créer ou mettre à jour le profil
+console.log('📝 Vérification du profil dans la table profiles...');
+
+// D'abord, vérifier si le profil existe déjà
+const { data: existingProfile } = await supabase
+  .from('profiles')
+  .select('id, role')
+  .eq('email', email)
+  .single();
+
+if (existingProfile) {
+  // Le profil existe déjà (cas intérimaire créé par l'agence)
+  console.log('✅ Profil existant trouvé, mise à jour de l\'ID auth...');
+  
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ 
+      id: data.user.id,  // Mettre à jour avec le vrai ID auth
+      updated_at: new Date().toISOString()
+    })
+    .eq('email', email);
+
+  if (updateError) {
+    console.error('❌ Erreur mise à jour profil:', updateError);
+    throw new Error(`Erreur mise à jour profil: ${updateError.message}`);
+  }
+  
+  console.log('✅ Profil mis à jour avec succès');
+} else {
+  // Le profil n'existe pas (cas agence qui s'inscrit)
   console.log('📝 Création du profil dans la table profiles...');
+  
   const { error: profileError } = await supabase
     .from('profiles')
     .insert({
@@ -166,8 +196,9 @@ const signUp = async (
     console.error('❌ Erreur création profil:', profileError);
     throw new Error(`Erreur création profil: ${profileError.message}`);
   }
-
+  
   console.log('✅ Profil créé avec succès');
+}
 
   // 3. SKIP loadUserProfile - on le fera au prochain signIn
   console.log('⏭️  Skip loadUserProfile (sera chargé au login)');
