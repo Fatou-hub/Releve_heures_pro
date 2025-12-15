@@ -123,59 +123,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Inscription
-  const signUp = async (
-    email: string, 
-    password: string, 
-    role: 'agence' | 'interimaire' | 'client'
-  ) => {
-    console.log('🔧 useAuth.signUp() - Début');
-    
-    // 1. Créer le compte auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+// Inscription
+const signUp = async (
+  email: string, 
+  password: string, 
+  role: 'agence' | 'interimaire' | 'client'
+) => {
+  console.log('🔧 useAuth.signUp() - Début');
+  
+  // 1. Créer le compte auth
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  console.log('📝 Résultat auth.signUp:', { data, error });
+
+  if (error) {
+    console.error('❌ Erreur auth.signUp:', error);
+    throw error;
+  }
+
+  if (!data.user) {
+    throw new Error('Erreur lors de la création du compte');
+  }
+
+  console.log('✅ Compte auth créé:', data.user.id);
+
+  // 2. Créer le profil
+  console.log('📝 Création du profil dans la table profiles...');
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({
+      id: data.user.id,
+      email: email,
+      role: role,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
 
-    console.log('📝 Résultat auth.signUp:', { data, error });
+  if (profileError) {
+    console.error('❌ Erreur création profil:', profileError);
+    throw new Error(`Erreur création profil: ${profileError.message}`);
+  }
 
-    if (error) {
-      console.error('❌ Erreur auth.signUp:', error);
-      throw error;
-    }
+  console.log('✅ Profil créé avec succès');
 
-    if (!data.user) {
-      throw new Error('Erreur lors de la création du compte');
-    }
+  // 3. SKIP loadUserProfile - on le fera au prochain signIn
+  console.log('⏭️  Skip loadUserProfile (sera chargé au login)');
+  
+  console.log('✅ signUp terminé avec succès');
+};
 
-    console.log('✅ Compte auth créé:', data.user.id);
-
-    // 2. Créer le profil
-    console.log('📝 Création du profil dans la table profiles...');
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.user.id,
-        email: email,
-        role: role,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-    if (profileError) {
-      console.error('❌ Erreur création profil:', profileError);
-      // NOTE: On ne peut pas supprimer le compte auth côté client
-      // Le compte auth restera créé mais sans profil
-      throw new Error(`Erreur création profil: ${profileError.message}`);
-    }
-
-    console.log('✅ Profil créé avec succès');
-
-    // 3. Charger le profil
-    console.log('📝 Chargement du profil...');
-    await loadUserProfile(data.user);
-    console.log('✅ signUp terminé avec succès');
-  };
 
   // Déconnexion
   const signOut = async () => {

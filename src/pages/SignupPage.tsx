@@ -15,43 +15,53 @@ export function SignupPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    console.log('🚀 Signup - Début du handleSubmit');
-    console.log('📧 Email:', email);
-    console.log('🔒 Password length:', password.length);
-    
-    setError('');
-    setSuccess(false);
-    setLoading(true);
+const handleSubmit = async (e: FormEvent) => {
+  e.preventDefault();
+  console.log('🚀 Signup - Début du handleSubmit');
+  console.log('📧 Email:', email);
+  console.log('🔒 Password length:', password.length);
+  
+  setError('');
+  setSuccess(false);
+  setLoading(true);
 
-    try {
-      console.log('📞 Appel signUp...');
-      await signUp(email, password, 'agence');
-      console.log('✅ signUp réussi !');
-      
-      // Mettre à jour le nom de l'agence si fourni
-      if (agencyName) {
-        console.log('🏢 Agency name fourni:', agencyName);
-        // TODO: Mettre à jour le profil avec agency_name
-      }
-      
-      setSuccess(true);
-      console.log('⏳ Redirection dans 2 secondes...');
-      setTimeout(() => {
-        console.log('➡️  Navigation vers /dashboard');
-        navigate('/dashboard');
-      }, 2000);
-    } catch (err: any) {
-      console.error('❌ Erreur signup:', err);
-      console.error('❌ Message:', err.message);
-      console.error('❌ Stack:', err.stack);
-      setError(err.message || 'Une erreur est survenue lors de l\'inscription');
-    } finally {
-      setLoading(false);
-      console.log('🏁 Fin du handleSubmit');
+  try {
+    console.log('📞 Appel signUp avec timeout de 15 secondes...');
+    
+    // Créer une promesse de timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('⏰ Timeout : Le signup a pris trop de temps (>15s)')), 15000)
+    );
+    
+    // Créer la promesse de signup
+    const signUpPromise = signUp(email, password, 'agence');
+    
+    // Course entre les deux
+    await Promise.race([signUpPromise, timeoutPromise]);
+    
+    console.log('✅ signUp réussi !');
+    
+    // Mettre à jour le nom de l'agence si fourni
+    if (agencyName) {
+      console.log('🏢 Agency name fourni:', agencyName);
+      // TODO: Mettre à jour le profil avec agency_name
     }
-  };
+    
+    setSuccess(true);
+    console.log('⏳ Redirection dans 2 secondes...');
+    setTimeout(() => {
+      console.log('➡️  Navigation vers /dashboard');
+      navigate('/dashboard');
+    }, 2000);
+  } catch (err: any) {
+    console.error('❌ Erreur signup:', err);
+    console.error('❌ Message:', err.message);
+    setError(err.message || 'Une erreur est survenue lors de l\'inscription');
+  } finally {
+    setLoading(false);
+    console.log('🏁 Fin du handleSubmit');
+  }
+};
 
   // console.log('🔄 Render SignupPage - loading:', loading);
 
