@@ -21,6 +21,29 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+console.log('🔗 Initialisation Supabase...');
+console.log('🔗 URL:', supabaseUrl);
+console.log('🔑 Anon Key (20 premiers caractères):', supabaseAnonKey?.substring(0, 20) + '...');
+
+(async () => {
+  try {
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('count', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('❌ Test connexion Supabase ÉCHEC:', error);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+    } else {
+      console.log('✅ Test connexion Supabase RÉUSSI');
+      console.log('✅ Nombre de profils dans la BDD:', count);
+    }
+  } catch (err) {
+    console.error('❌ Exception test connexion:', err);
+  }
+})();
+
 // Webhooks n8n (optionnels)
 export const WEBHOOKS = {
   SUBMISSION: import.meta.env.VITE_N8N_WEBHOOK_SUBMISSION || '',

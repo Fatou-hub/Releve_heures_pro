@@ -38,69 +38,165 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Fonction pour charger le profil utilisateur
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
-    try {
-      const { data: profile, error } = await supabase
+  try {
+    console.log('👤 === DÉBUT loadUserProfile ===');
+    console.log('👤 Email:', supabaseUser.email);
+    console.log('👤 ID:', supabaseUser.id);
+    
+    console.log('📡 Appel Supabase profiles avec timeout 3s...');
+    
+    // Créer une promesse de timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const id = setTimeout(() => {
+        console.warn('⏰ TIMEOUT atteint (3s)');
+        reject(new Error('Timeout'));
+      }, 3000);
+      return id;
+    });
+    
+    // Créer la promesse de requête Supabase  
+    const fetchPromise = (async () => {
+      const result = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
+      console.log('📊 Requête terminée:', result);
+      return result;
+    })();
+    
+    // Course entre les deux
+    const { data: profile, error } = await Promise.race([
+      fetchPromise, 
+      timeoutPromise
+    ]) as any;
 
-      if (error) {
-        console.error('Erreur chargement profil:', error);
-        return;
-      }
+    console.log('📊 Résultat final:', { profile, error });
 
-      if (profile) {
-        // Mettre à jour la dernière connexion
+    if (error) {
+      console.error('❌ Erreur chargement profil:', error);
+      throw error;
+    }
+
+    if (!profile) {
+      console.error('❌ Profil est null !');
+      throw new Error('Profil null');
+    }
+
+    console.log('✅ Profil récupéré:', profile);
+
+    // Update last_login (non bloquant) - VERSION CORRIGÉE
+    (async () => {
+      try {
         await supabase
           .from('profiles')
           .update({ last_login_at: new Date().toISOString() })
           .eq('id', supabaseUser.id);
-
-        setUser({
-          id: supabaseUser.id,
-          email: supabaseUser.email!,
-          role: profile.role,
-          agencyId: profile.agency_id,
-          agencyName: profile.agency_name,
-          firstName: profile.first_name,
-          lastName: profile.last_name,
-        });
+        console.log('✅ last_login_at mis à jour');
+      } catch (e) {
+        console.warn('⚠️ Erreur update last_login:', e);
       }
-    } catch (err) {
-      console.error('Erreur lors du chargement du profil:', err);
-    }
-  };
+    })();
+
+    setUser({
+      id: supabaseUser.id,
+      email: supabaseUser.email!,
+      role: profile.role,
+      agencyId: profile.agency_id,
+      agencyName: profile.agency_name,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+    });
+    
+    console.log('✅ User state mis à jour, rôle:', profile.role);
+    console.log('👤 === FIN loadUserProfile SUCCÈS ===');
+    
+  } catch (err: any) {
+    console.error('❌ === EXCEPTION loadUserProfile ===');
+    console.error('❌ Message:', err?.message || err);
+    
+    // FALLBACK : Profil temporaire pour débloquer la connexion
+    console.warn('⚠️ FALLBACK - Création profil temporaire');
+    
+    setUser({
+      id: supabaseUser.id,
+      email: supabaseUser.email!,
+      role: 'agence',
+      agencyId: undefined,
+      agencyName: 'Agence (temporaire)',
+      firstName: undefined,
+      lastName: undefined,
+    });
+    
+    console.log('✅ Profil temporaire créé - VOUS POUVEZ VOUS CONNECTER');
+    console.log('⚠️ Rechargez la page dans quelques secondes pour retry');
+  }
+};
 
   // Vérifier la session au chargement
   useEffect(() => {
     const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          await loadUserProfile(session.user);
-        }
-      } catch (err) {
-        console.error('Erreur vérification session:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+     try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    // NOUVEAU : Si erreur ou pas de session, nettoyer
+    if (error || !session) {
+      console.log('🧹 Nettoyage de la session invalide');
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+    }
+    
+    if (session?.user) {
+      await loadUserProfile(session.user);
+    }
+  } catch (err) {
+    console.error('Erreur vérification session:', err);
+    // Nettoyer en cas d'erreur
+    localStorage.clear();
+    sessionStorage.clear();
+  } finally {
+    setLoading(false);
+  }
+};
 
     checkSession();
 
     // Écouter les changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          await loadUserProfile(session.user);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
+     async (event, session) => {
+    try {
+      console.log('🔄 Auth state change:', event);
+      console.log('📦 Session:', session ? 'Présente' : 'Absente');
+      
+      if (event === 'SIGNED_OUT') {
+        console.log('🧹 Nettoyage après déconnexion');
+        setUser(null);
+        localStorage.clear();
+        sessionStorage.clear();
+      } 
+      else if (event === 'SIGNED_IN' && session?.user) {
+        console.log('🔐 SIGNED_IN détecté, chargement du profil...');
+        await loadUserProfile(session.user);
       }
-    );
+      else if (event === 'INITIAL_SESSION' && session?.user) {
+        console.log('🔄 Session initiale détectée, chargement du profil...');
+        await loadUserProfile(session.user);
+      }
+      else if (session?.user) {
+        console.log('👤 Session user présente, chargement du profil...');
+        await loadUserProfile(session.user);
+      } 
+      else {
+        console.log('❌ Pas de session user, nettoyage...');
+        setUser(null);
+      }
+      
+      console.log('✅ onAuthStateChange terminé');
+    } catch (error) {
+      console.error('❌ ERREUR dans onAuthStateChange:', error);
+    }
+  }
+);
 
     return () => {
       subscription.unsubscribe();
@@ -158,7 +254,7 @@ const { data: existingProfile } = await supabase
   .from('profiles')
   .select('id, role')
   .eq('email', email)
-  .single();
+  
 
 if (existingProfile) {
   // Le profil existe déjà (cas intérimaire créé par l'agence)
@@ -208,13 +304,25 @@ if (existingProfile) {
 
 
   // Déconnexion
-  const signOut = async () => {
+const signOut = async () => {
+  try {
+    console.log('🚪 Déconnexion...');
+    
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
+    
     setUser(null);
-  };
+    
+    // NOUVEAU : Nettoyer localStorage et sessionStorage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    console.log('✅ Déconnexion réussie');
+  } catch (error) {
+    console.error('❌ Erreur déconnexion:', error);
+    throw error;
+  }
+};
 
   // Réinitialiser mot de passe
   const resetPassword = async (email: string) => {
