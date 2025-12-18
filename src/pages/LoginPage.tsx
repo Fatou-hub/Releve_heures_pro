@@ -55,11 +55,12 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="mb-5">
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label htmlFor="email-address" className="block text-sm font-medium text-neutral-900 mb-2">
                 Email
               </label>
               <input
                 type="email"
+                id="email-address"
                 className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-md text-sm transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 placeholder="vous@example.com"
                 value={email}
@@ -71,12 +72,13 @@ export function LoginPage() {
             </div>
 
             <div className="mb-2">
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label htmlFor="mot-de-passe" className="block text-sm font-medium text-neutral-900 mb-2">
                 Mot de passe
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  id="mot-de-passe"
                   className="w-full px-3.5 py-2.5 pr-10 border border-neutral-200 rounded-md text-sm transition-all bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   placeholder="••••••••"
                   value={password}
