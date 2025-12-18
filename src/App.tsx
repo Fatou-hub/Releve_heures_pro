@@ -7,7 +7,9 @@ import { AgencyDashboard } from './pages/AgencyDashboard';
 import { ManageInterimaires } from './pages/ManageInterimaires';
 import { TimesheetForm } from './pages/TimesheetForm';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { SignupInterimairePage } from './pages/Signupinterimairepage';
+import { SignupInterimairePage } from './pages/SignupInterimairePage';
+import { ValidationPage } from './pages/ValidationPage';
+
 
 
 function App() {
@@ -20,6 +22,7 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signup-interimaire" element={<SignupInterimairePage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/validation/:token" element={<ValidationPage />} />
 
           {/* Routes protégées - Agence */}
           <Route
