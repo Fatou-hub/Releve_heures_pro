@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Header } from '../components/Header';
 import { Plus, Mail, Phone, Calendar, X, UserPlus, Search } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 
 interface Interimaire {
@@ -17,6 +19,7 @@ interface Interimaire {
 
 export function ManageInterimaires() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [interimaires, setInterimaires] = useState<Interimaire[]>([]);
   const [filteredInterimaires, setFilteredInterimaires] = useState<Interimaire[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +116,13 @@ export function ManageInterimaires() {
       <Header title="Gestion des Intérimaires" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                <button
+          onClick={() => user?.role === 'agence' ? navigate('/dashboard') : navigate('/')}
+          className="flex items-center gap-2 text-sm text-neutral-600 hover:text-primary mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
         {/* Header avec statistiques et bouton */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
