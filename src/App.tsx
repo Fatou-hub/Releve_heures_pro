@@ -1,3 +1,4 @@
+// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { LoginPage } from './pages/LoginPage';
@@ -10,12 +11,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { SignupInterimairePage } from './pages/SignupInterimairePage';
 import { ValidationPage } from './pages/ValidationPage';
 
-
-
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
           {/* Routes publiques */}
           <Route path="/login" element={<LoginPage />} />
@@ -57,7 +56,6 @@ function App() {
             path="/mes-releves"
             element={
               <ProtectedRoute>
-                {/* TODO: Page mes relevés */}
                 <div>Mes relevés (à créer)</div>
               </ProtectedRoute>
             }
@@ -67,8 +65,8 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Header } from '../components/Header';
-import { Plus, Mail, Phone, Calendar, X, UserPlus, Search } from 'lucide-react';
+import { Plus, Mail, Phone, Calendar, X, UserPlus, Search, Copy, Check, Send } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
 
 interface Interimaire {
   id: string;
@@ -24,6 +23,10 @@ export function ManageInterimaires() {
   const [filteredInterimaires, setFilteredInterimaires] = useState<Interimaire[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // 🆕 Modale de succès
+  const [invitationLink, setInvitationLink] = useState(''); // 🆕 Lien d'invitation
+  const [newInterimaire, setNewInterimaire] = useState<{ firstName: string; lastName: string; email: string } | null>(null); // 🆕 Infos intérimaire créé
+  const [copied, setCopied] = useState(false); // 🆕 État de copie
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     email: '',
@@ -37,7 +40,6 @@ export function ManageInterimaires() {
   }, []);
 
   useEffect(() => {
-    // Filtrer les intérimaires selon la recherche
     if (searchTerm.trim() === '') {
       setFilteredInterimaires(interimaires);
     } else {
@@ -69,12 +71,52 @@ export function ManageInterimaires() {
     }
   };
 
+  // 🆕 Fonction pour copier le lien
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback pour navigateurs anciens
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // 🆕 Fonction pour envoyer par email
+  const sendByEmail = () => {
+    if (!newInterimaire) return;
+    
+    const subject = `Votre lien d'inscription - ${user?.agencyName || 'LoomAgency'}`;
+    const body = `Bonjour ${newInterimaire.firstName},
+
+Bienvenue dans notre plateforme de gestion des relevés d'heures !
+
+Pour créer votre compte et commencer à soumettre vos relevés, cliquez sur le lien ci-dessous :
+
+${invitationLink}
+
+Si vous avez des questions, n'hésitez pas à nous contacter.
+
+Cordialement,
+${user?.agencyName || 'LoomAgency'}`;
+
+    window.location.href = `mailto:${newInterimaire.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   const handleCreateInterimaire = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Appeler la fonction Supabase pour créer l'intérimaire
+      // 1. Appeler la fonction Supabase
       const { error } = await supabase.rpc('create_interimaire_simple', {
         p_email: formData.email,
         p_first_name: formData.firstName,
@@ -85,22 +127,24 @@ export function ManageInterimaires() {
       if (error) throw error;
 
       // 2. Créer le lien d'invitation
-      const invitationLink = `${window.location.origin}/signup-interimaire?email=${encodeURIComponent(formData.email)}`;
+      const link = `${window.location.origin}/signup-interimaire?email=${encodeURIComponent(formData.email)}`;
+      setInvitationLink(link);
 
-      // 3. Afficher le message avec le lien
-      const message = `✅ Intérimaire créé avec succès !\n\n📧 Envoyez-lui ce lien pour qu'il crée son compte :\n${invitationLink}\n\nCopiez ce lien et envoyez-le par email/SMS/WhatsApp.`;
-
-      alert(message);
-
-      // 4. Copier automatiquement le lien dans le presse-papier
-      navigator.clipboard.writeText(invitationLink).then(() => {
-        console.log('✅ Lien copié dans le presse-papier');
-      }).catch((err) => {
-        console.error('Erreur copie presse-papier:', err);
+      // 3. Sauvegarder les infos de l'intérimaire
+      setNewInterimaire({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email
       });
 
+      // 4. Fermer modale création et ouvrir modale succès
       setShowModal(false);
+      setShowSuccessModal(true);
+
+      // 5. Réinitialiser le formulaire
       setFormData({ email: '', firstName: '', lastName: '', phone: '' });
+
+      // 6. Recharger la liste
       fetchInterimaires();
 
     } catch (error: any) {
@@ -116,13 +160,14 @@ export function ManageInterimaires() {
       <Header title="Gestion des Intérimaires" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-                <button
+        <button
           onClick={() => user?.role === 'agence' ? navigate('/dashboard') : navigate('/')}
           className="flex items-center gap-2 text-sm text-neutral-600 hover:text-primary mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
+
         {/* Header avec statistiques et bouton */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -369,7 +414,7 @@ export function ManageInterimaires() {
                 <p className="text-sm text-blue-800 flex items-start gap-2">
                   <span className="text-lg">ℹ️</span>
                   <span>
-                    Un email sera automatiquement envoyé à l'intérimaire pour qu'il puisse définir son mot de passe et se connecter.
+                    Un lien d'inscription sera généré pour que l'intérimaire puisse créer son compte.
                   </span>
                 </p>
               </div>
@@ -399,6 +444,90 @@ export function ManageInterimaires() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 Modal Succès avec Lien d'Invitation */}
+      {showSuccessModal && newInterimaire && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6">
+            {/* Header avec icône de succès */}
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <Check className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-neutral-900 mb-2">
+                Intérimaire créé avec succès !
+              </h3>
+              <p className="text-neutral-600">
+                {newInterimaire.firstName} {newInterimaire.lastName} a été ajouté à votre agence
+              </p>
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-900 font-medium mb-2">
+                📧 Étape suivante : Envoyer le lien d'inscription
+              </p>
+              <p className="text-sm text-blue-800">
+                Copiez le lien ci-dessous et envoyez-le à {newInterimaire.firstName} par email, SMS ou WhatsApp pour qu'il puisse créer son compte.
+              </p>
+            </div>
+
+            {/* Lien dans un champ copiable */}
+            <div className="bg-neutral-50 rounded-lg p-3 mb-4 border border-neutral-200">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={invitationLink}
+                  className="flex-1 bg-transparent text-sm text-neutral-700 outline-none font-mono"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+              </div>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              {/* Bouton Copier */}
+              <button
+                onClick={() => copyToClipboard(invitationLink)}
+                className="flex-1 bg-primary text-white px-4 py-3 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-medium"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    <span>Copié !</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    <span>Copier le lien</span>
+                  </>
+                )}
+              </button>
+
+              {/* Bouton Envoyer par Email */}
+              <button
+                onClick={sendByEmail}
+                className="flex-1 bg-neutral-100 text-neutral-700 px-4 py-3 rounded-lg hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 font-medium"
+              >
+                <Send className="w-5 h-5" />
+                <span>Envoyer par email</span>
+              </button>
+            </div>
+
+            {/* Bouton Fermer */}
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                setCopied(false);
+              }}
+              className="w-full text-neutral-600 hover:text-neutral-900 text-sm font-medium py-2"
+            >
+              Fermer
+            </button>
           </div>
         </div>
       )}
