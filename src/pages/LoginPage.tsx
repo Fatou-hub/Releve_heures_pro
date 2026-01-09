@@ -2,7 +2,6 @@ import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Clipboard, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { LoginRedirect } from '../components/LoginRedirect';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,22 +14,30 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    console.log('🔐 Login...');
+    
     setError('');
     setLoading(true);
 
     try {
+      // Nettoyer avant login
+      localStorage.clear();
+      sessionStorage.clear();
+      
       await signIn(email, password);
-      // LoginRedirect gérera la redirection automatiquement
+      
+      // Forcer reload complet
+      window.location.href = '/dashboard';
+      
     } catch (err: any) {
+      console.error('❌ Error:', err);
       setError(err.message || 'Email ou mot de passe incorrect');
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <LoginRedirect />
-      <div className="min-h-screen flex items-center justify-center px-4 bg-neutral-50">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-neutral-50">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl border border-neutral-200 p-8">
           <div className="flex justify-center mb-5">
@@ -130,6 +137,5 @@ export function LoginPage() {
         </div>
       </div>
     </div>
-    </>
   );
 }

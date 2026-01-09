@@ -51,12 +51,12 @@ export function TimesheetForm() {
     const startDate = new Date(dateStr);
     const targetDate = new Date(startDate);
     targetDate.setDate(startDate.getDate() + dayIndex);
-    
+
     const day = targetDate.getDate();
     const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
     const month = months[targetDate.getMonth()];
     const year = targetDate.getFullYear();
-    
+
     return `${day} ${month} ${year}`;
   };
 
@@ -65,7 +65,7 @@ export function TimesheetForm() {
     const startDate = new Date(formData.weekStart);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-    
+
     return {
       weekNumber: getWeekNumber(startDate),
       year: startDate.getFullYear(),
@@ -78,7 +78,7 @@ export function TimesheetForm() {
     if (!start || !end) return 0;
     const [startH, startM] = start.split(':').map(Number);
     const [endH, endM] = end.split(':').map(Number);
-    return (endH + endM/60) - (startH + startM/60);
+    return (endH + endM / 60) - (startH + startM / 60);
   };
 
   const calculateDayTotal = (day: keyof typeof formData.hours): string => {
@@ -114,11 +114,19 @@ export function TimesheetForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+    console.log('📝 Submit...');
+
+    // VÉRIFICATION CRITIQUE
+    if (!user?.agencyId) {
+      console.error('❌ agencyId manquant !');
+      alert('⚠️ Erreur : Profil non chargé. Veuillez rafraîchir la page (F5) et réessayer.');
+      return;
+    }
+
     // Vérifier qu'au moins un jour a des heures
     const totalHours = parseFloat(calculateTotalHours());
     if (totalHours === 0) {
-      alert('⚠️ Veuillez remplir au moins un jour avec des heures travaillées avant de soumettre le relevé.');
+      alert('⚠️ Veuillez remplir au moins un jour avec des heures travaillées.');
       return;
     }
 
@@ -127,23 +135,25 @@ export function TimesheetForm() {
     try {
       const weekPeriod = getWeekPeriod();
 
-      // 1. Insérer dans Supabase (PRIORITÉ - Lien de cardinalité créé ici !)
+      console.log('📡 Inserting into Supabase...');
+      console.log('🆔 agency_id:', user.agencyId);  // Debug
+
       const { data: timesheetData, error: insertError } = await supabase
         .from('timesheets')
         .insert({
-          submitted_by: user?.email || '',
-          agency_id: user?.agencyId || null, // ← LIEN DE CARDINALITÉ !
+          submitted_by: user.email || '',
+          agency_id: user.agencyId,  // ← Maintenant garanti non-null 
           client_email: formData.company.email,
-          
+
           employee_first_name: formData.employee.firstName,
           employee_last_name: formData.employee.lastName,
           employee_pluri_rh: formData.employee.pluriRH,
-          
+
           company_name: formData.company.name,
           company_email: formData.company.email,
           company_contract_number: formData.company.contractNumber,
           company_location: formData.company.location,
-          
+
           week_start: formData.weekStart,
           week_number: weekPeriod.weekNumber,
           year: weekPeriod.year,
@@ -151,7 +161,7 @@ export function TimesheetForm() {
           comments: formData.comments,
           mission_status: formData.missionStatus,
           total_hours: totalHours,
-          
+
           status: 'pending'
         })
         .select()
@@ -188,14 +198,14 @@ export function TimesheetForm() {
       }
 
       alert('✅ Relevé soumis avec succès !');
-      
+
       // Rediriger selon le rôle
       if (user?.role === 'agence') {
         navigate('/dashboard');
       } else {
         navigate('/');
       }
-      
+
     } catch (error: any) {
       console.error('Erreur:', error);
       alert('❌ Erreur lors de la soumission : ' + (error.message || 'Une erreur est survenue'));
@@ -315,7 +325,7 @@ export function TimesheetForm() {
   // Composant Tableau Desktop
   const DaysTable = () => {
     const weekPeriod = getWeekPeriod();
-    
+
     return (
       <div className="overflow-x-auto">
         {/* Numéro de Semaine */}
@@ -439,68 +449,68 @@ export function TimesheetForm() {
           <div className="bg-white rounded-xl border border-neutral-200 p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">Informations Générales</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input 
-                type="text" 
-                placeholder="Prénom" 
-                className="form-input" 
-                value={formData.employee.firstName} 
-                onChange={(e) => setFormData({...formData, employee: {...formData.employee, firstName: e.target.value}})} 
-                required 
+              <input
+                type="text"
+                placeholder="Prénom"
+                className="form-input"
+                value={formData.employee.firstName}
+                onChange={(e) => setFormData({ ...formData, employee: { ...formData.employee, firstName: e.target.value } })}
+                required
               />
-              <input 
-                type="text" 
-                placeholder="Nom" 
-                className="form-input" 
-                value={formData.employee.lastName} 
-                onChange={(e) => setFormData({...formData, employee: {...formData.employee, lastName: e.target.value}})} 
-                required 
+              <input
+                type="text"
+                placeholder="Nom"
+                className="form-input"
+                value={formData.employee.lastName}
+                onChange={(e) => setFormData({ ...formData, employee: { ...formData.employee, lastName: e.target.value } })}
+                required
               />
-              <input 
-                type="text" 
-                placeholder="Nom de l'Agence Interim" 
-                className="form-input" 
-                value={formData.employee.pluriRH} 
-                onChange={(e) => setFormData({...formData, employee: {...formData.employee, pluriRH: e.target.value}})} 
-                required 
+              <input
+                type="text"
+                placeholder="Nom de l'Agence Interim"
+                className="form-input"
+                value={formData.employee.pluriRH}
+                onChange={(e) => setFormData({ ...formData, employee: { ...formData.employee, pluriRH: e.target.value } })}
+                required
               />
-              <input 
-                type="text" 
-                placeholder="Nom de l'Entreprise utilisatrice" 
-                className="form-input" 
-                value={formData.company.name} 
-                onChange={(e) => setFormData({...formData, company: {...formData.company, name: e.target.value}})} 
-                required 
+              <input
+                type="text"
+                placeholder="Nom de l'Entreprise utilisatrice"
+                className="form-input"
+                value={formData.company.name}
+                onChange={(e) => setFormData({ ...formData, company: { ...formData.company, name: e.target.value } })}
+                required
               />
-              <input 
-                type="email" 
-                placeholder="Email entreprise" 
-                className="form-input" 
-                value={formData.company.email} 
-                onChange={(e) => setFormData({...formData, company: {...formData.company, email: e.target.value}})} 
-                required 
+              <input
+                type="email"
+                placeholder="Email entreprise"
+                className="form-input"
+                value={formData.company.email}
+                onChange={(e) => setFormData({ ...formData, company: { ...formData.company, email: e.target.value } })}
+                required
               />
-              <input 
-                type="text" 
-                placeholder="N° contrat (optionnel)" 
-                className="form-input" 
-                value={formData.company.contractNumber} 
-                onChange={(e) => setFormData({...formData, company: {...formData.company, contractNumber: e.target.value}})} 
+              <input
+                type="text"
+                placeholder="N° contrat (optionnel)"
+                className="form-input"
+                value={formData.company.contractNumber}
+                onChange={(e) => setFormData({ ...formData, company: { ...formData.company, contractNumber: e.target.value } })}
               />
-              <input 
-                type="text" 
-                placeholder="Lieu" 
-                className="form-input" 
-                value={formData.company.location} 
-                onChange={(e) => setFormData({...formData, company: {...formData.company, location: e.target.value}})} 
-                required 
+              <input
+                type="text"
+                placeholder="Lieu"
+                className="form-input"
+                value={formData.company.location}
+                onChange={(e) => setFormData({ ...formData, company: { ...formData.company, location: e.target.value } })}
+                required
               />
-              <input 
-                type="date" 
+              <input
+                type="date"
                 aria-label="Date de début de semaine"
-                className="form-input" 
-                value={formData.weekStart} 
-                onChange={(e) => setFormData({...formData, weekStart: e.target.value})} 
-                required 
+                className="form-input"
+                value={formData.weekStart}
+                onChange={(e) => setFormData({ ...formData, weekStart: e.target.value })}
+                required
               />
             </div>
           </div>
@@ -514,7 +524,7 @@ export function TimesheetForm() {
                 <p className="text-2xl font-bold text-primary">{calculateTotalHours()}h</p>
               </div>
             </div>
-            
+
             {/* Vue Desktop (Tableau) - Visible sur écrans >= 768px */}
             <div className="hidden md:block">
               <DaysTable />
@@ -529,15 +539,15 @@ export function TimesheetForm() {
               </div>
 
               {days.map(({ key, label, emoji }, index) => (
-                <DayCard 
-                  key={key} 
-                  dayKey={key as keyof typeof formData.hours} 
+                <DayCard
+                  key={key}
+                  dayKey={key as keyof typeof formData.hours}
                   label={label}
                   emoji={emoji}
                   dayIndex={index}
                 />
               ))}
-              
+
               {/* Total Mobile */}
               <div className="bg-primary/10 rounded-xl p-4 mt-4">
                 <div className="flex items-center justify-between">
@@ -555,27 +565,27 @@ export function TimesheetForm() {
               placeholder="Ajoutez des commentaires sur cette semaine de travail..."
               className="form-input min-h-[100px]"
               value={formData.comments}
-              onChange={(e) => setFormData({...formData, comments: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
             />
           </div>
 
           {/* Statut et Soumission */}
           <div className="bg-white rounded-xl border border-neutral-200 p-6">
             <h2 className="text-lg font-semibold mb-4">Statut de la Mission</h2>
-            <select 
+            <select
               aria-label="Statut de la mission"
-              className="form-input mb-4" 
-              value={formData.missionStatus} 
-              onChange={(e) => setFormData({...formData, missionStatus: e.target.value as any})}
+              className="form-input mb-4"
+              value={formData.missionStatus}
+              onChange={(e) => setFormData({ ...formData, missionStatus: e.target.value as any })}
             >
               <option value="En cours">Continue la semaine prochaine</option>
               <option value="Terminée">Mission terminée</option>
               <option value="Suspendue">Départ volontaire</option>
               <option value="Suspendue">Embauché(e) par le client</option>
             </select>
-            <button 
-              type="submit" 
-              className="w-full btn-primary justify-center py-3 text-base font-semibold" 
+            <button
+              type="submit"
+              className="w-full btn-primary justify-center py-3 text-base font-semibold"
               disabled={loading}
             >
               {loading ? 'Envoi en cours...' : 'Soumettre le relevé'}
