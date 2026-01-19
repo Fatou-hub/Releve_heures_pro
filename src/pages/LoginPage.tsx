@@ -12,7 +12,7 @@ export function LoginPage() {
   
   const { signIn } = useAuth();
 
-  const handleSubmit = async (e: FormEvent) => {
+const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     console.log('🔐 Login...');
     
@@ -20,19 +20,14 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      // Nettoyer avant login
-      localStorage.clear();
-      sessionStorage.clear();
-      
+    // 1. On lance la connexion
       await signIn(email, password);
-      
-      // Forcer reload complet
-      window.location.href = '/dashboard';
       
     } catch (err: any) {
       console.error('❌ Error:', err);
+      // On affiche l'erreur si Supabase renvoie un mauvais mdp/email
       setError(err.message || 'Email ou mot de passe incorrect');
-      setLoading(false);
+      setLoading(false); // On arrête le chargement seulement en cas d'échec
     }
   };
 

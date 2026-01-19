@@ -1,57 +1,60 @@
 import { createClient } from '@supabase/supabase-js';
 
-// IMPORTANT : Remplacez ces valeurs par vos vraies clés Supabase
-// Vous les trouveez dans : Supabase Dashboard > Settings > API
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Variables d\'environnement Supabase manquantes !');
-  console.error('Créez un fichier .env à la racine avec :');
-  console.error('VITE_SUPABASE_URL=votre_url');
-  console.error('VITE_SUPABASE_ANON_KEY=votre_cle');
 }
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
 
 console.log('🔗 Initialisation Supabase...');
 console.log('🔗 URL:', supabaseUrl);
 console.log('🔑 Anon Key (20 premiers caractères):', supabaseAnonKey?.substring(0, 20) + '...');
 
-(async () => {
-  try {
-    const { count, error } = await supabase
-      .from('profiles')
-      .select('count', { count: 'exact', head: true });
-    
-    if (error) {
-      console.error('❌ Test connexion Supabase ÉCHEC:', error);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error message:', error.message);
-    } else {
-      console.log('✅ Test connexion Supabase RÉUSSI');
-      console.log('✅ Nombre de profils dans la BDD:', count);
-    }
-  } catch (err) {
-    console.error('❌ Exception test connexion:', err);
-  }
-})();
+// ✅ FIX : Ajout des headers globaux
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    storageKey: 'supabase.auth.token',
+  },
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+});
 
-// Webhooks n8n (optionnels)
+// Test de connexion
+// (async () => {
+//   try {
+//     const { count, error } = await supabase
+//       .from('profiles')
+//       .select('*', { count: 'exact', head: true });
+    
+//     if (error) {
+//       console.error('❌ Test connexion Supabase ÉCHEC:', error);
+//     } else {
+//       console.log('✅ Test connexion Supabase RÉUSSI');
+//       console.log('✅ Nombre de profils dans la BDD:', count);
+//     }
+//   } catch (err) {
+//     console.error('❌ Exception test connexion:', err);
+//   }
+// })();
+
 export const WEBHOOKS = {
   SUBMISSION: import.meta.env.VITE_N8N_WEBHOOK_SUBMISSION || '',
   VALIDATION: import.meta.env.VITE_N8N_WEBHOOK_VALIDATION || '',
   CONSULTATION: import.meta.env.VITE_N8N_WEBHOOK_CONSULTATION || '',
 };
 
-// Type helper pour les tables
+// Types (gardez vos types existants)
 export type Database = {
   public: {
     Tables: {
@@ -89,7 +92,7 @@ export type Database = {
           week_start: string;
           week_number: number | null;
           year: number | null;
-          hours: any; // JSONB
+          hours: any;
           comments: string | null;
           mission_status: string | null;
           total_hours: number;
